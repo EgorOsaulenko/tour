@@ -22,9 +22,9 @@ login_manager.init_app(app)
 
 
 @login_manager.user_loader
-def get_user():
+def get_user(id):
     with Session() as session:
-        return session.query(User).where(User,id == id)
+        return session.query(User).where(User.id == id).first()
 
 
 
