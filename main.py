@@ -22,9 +22,9 @@ login_manager.init_app(app)
 
 
 @login_manager.user_loader
-def get_user(id):
+def get_user(user_id):
     with Session() as session:
-        return session.query(User).where(User.id == id).first()
+        return session.query(User).where(User.id == user_id).first()
 
 
 
@@ -37,9 +37,11 @@ def global_data():
         else:
             user_tours = []
 
-    return dict(
-        departures=data.departures
-    )
+        return dict(
+    departures=data.departures,
+    user_tours=user_tours
+)
+
 
 
 @app.get("/")
@@ -52,7 +54,7 @@ def index():
 @app.get("/tour/<int:id>")
 def get_tour(id):
     with Session() as session:
-        tour = session.query(Tour).where(Tour, id == id).first()
+        tour = session.query(Tour).where(Tour.id == id).first()
         return render_template("tour.html", tour=tour)
 
 
@@ -68,7 +70,7 @@ def departure(dep_eng):
 @login_required
 def reserve(tour_id):
     with Session() as session:
-        tour = session.query(Tour).where(Tour.id == tour_id).first()
+        tour = session.query(Tour).where(Tour.id == tour_id.id).first()
         user = session.query(User).where(User.id == current_user.id).first()
         user.tours.append(tour)
         session.commit()
@@ -89,15 +91,15 @@ def login():
                 flash("Логін або пароль невірний.")
                 return redirect(url_for("signup"))
             
-                login_user(user)
-                return redirect(url_for("acount"))
+            login_user(user)
+            return redirect(url_for("account"))
 
     return render_template("login.html", form=login_form)
 
 
 @app.route("/signup/", methods=["GET", "POST"])
 def signup():
-    signup_form = SignUpForm
+    signup_form = SignUpForm()
     
     if signup_form.validate_on_submit():
         username = signup_form.username.data
@@ -105,7 +107,7 @@ def signup():
         password = signup_form.password.data
 
         with Session() as session:
-            user=session.query(User).where(or_(User.email, User.username == username)).first()
+            user=session.query(User).where(or_(User.email == username, User.username == username)).first()
             if user:
                 flash("Такий користувач вже зареєстрований. Увійдіть до системи")
                 return redirect(url_for("login"))
@@ -118,6 +120,8 @@ def signup():
             session.commit()
             return redirect(url_for("login"))
 
+
+    return render_template("signup.html", form=signup_form)
 
 @app.get("/account/")
 @login_required
@@ -132,6 +136,16 @@ def logout():
     flash("Ви успішно вийшли із системи")
     return redirect(url_for("index"))
 
+
+@app.get("/reserve/<int:tour_id>/")
+@login_required
+def reserve(tour_id: int):
+    tour = db.session.query(Tour).where(Tour.id == tour_id).first()
+    user = db.session.query(User).where(User.id == current_user).first()
+    user.tours.append(tour)
+    db.session.comit()
+    flash("Тур успішно заброньовано")
+    return redirect(url_for("cabinet"))
 
 if __name__ == "__main__":
     create_db()
